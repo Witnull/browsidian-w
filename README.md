@@ -22,17 +22,20 @@ It supports four working modes:
 - In creation dialogs, press Enter to confirm
 - New files must be Markdown (`.md`)
 - Edit Markdown with **auto-save** (~1s inactivity) and **Ctrl+S**
-- **Preview mode** (Obsidian-style Markdown → HTML) when not focused; click to edit Markdown
+- **Preview mode** (Obsidian-style Markdown → HTML) when not focused; click to edit Markdown - Live line by line render
 - Non-`.md` files show "File not supported" in preview
 - Obsidian **wikilinks** in preview: `[[Note]]`, `[[Note|Alias]]` (click to navigate)
 - Basic Markdown tables in preview
-- Drag & drop a file onto a folder to move it
+- Drag & drop a file/folders to move it
 - Click a folder to select it (used as default destination for new files/folders)
 - Dark / Light mode toggle (persisted in `localStorage`)
 - Subtle, consistent UI styling (dark + light)
 - Flat, subtle SVG icon set (no external dependencies)
 - App logo + favicon
 - Footer shows app version (from `/api/config` when available)
+- Allow remote using with Authentication per vault
+- Now able to render image
+- Add some more shortcuts - will note later
 
 ## Requirements
 
