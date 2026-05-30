@@ -2,8 +2,7 @@
   <img src="img/browsidian.png" alt="Browsidian" width="96" />
 </p>
 
-# Browsidian
-
+# Browsidian W
 Browsidian is a local web app to browse and edit an Obsidian vault directly in your browser.
 
 ![Screenshot](img/screenshot.png)
@@ -13,7 +12,7 @@ It supports four working modes:
 - **Server mode**: a local Node.js server reads/writes files on disk in a configured vault folder.
 - **Browser mode**: the browser accesses a folder you pick (File System Access API) and edits it directly (no vault configured on the server).
 - **Demo mode**: a small in-browser “vault” stored in `localStorage` (useful for agents or browsers without folder picker support).
-- **Dropbox mode**: connect to Dropbox and work on a remote vault (all file operations happen in the cloud).
+"Dropbox mode" removed.
 
 ## Features
 
@@ -23,7 +22,7 @@ It supports four working modes:
 - In creation dialogs, press Enter to confirm
 - New files must be Markdown (`.md`)
 - Edit Markdown with **auto-save** (~1s inactivity) and **Ctrl+S**
-- **Preview mode** (basic Markdown → HTML) when not focused; click to edit Markdown
+- **Preview mode** (Obsidian-style Markdown → HTML) when not focused; click to edit Markdown
 - Non-`.md` files show "File not supported" in preview
 - Obsidian **wikilinks** in preview: `[[Note]]`, `[[Note|Alias]]` (click to navigate)
 - Basic Markdown tables in preview
@@ -50,7 +49,6 @@ Notes:
 
 - The hosted app cannot access your filesystem in Server mode. Use Browser mode (folder picker) or Demo mode.
 - The hosted app exposes `/api/config` (for the version), but not the vault file APIs.
-- Dropbox mode requires server-side OAuth endpoints and `DROPBOX_APP_KEY`/`DROPBOX_APP_SECRET` env vars.
 
 ## Getting started
 
@@ -68,7 +66,29 @@ Or via env var:
 OBSIDIAN_VAULT=/path/to/your/vault npm start
 ```
 
+Or with npm args forwarded through `--`:
+
+```bash
+npm start -- --vault /path/to/your/vault
+```
+
+Open: `http://127.0.0.1:4173`
+
+### Vite dev mode
+
+Run the frontend through Vite and the backend API on a companion port:
+
+```bash
+npm run dev -- --vault /path/to/your/vault
+```
+
 Open: `http://127.0.0.1:5173`
+
+Build for production:
+
+```bash
+npm run build
+```
 
 ### Browser mode (no server vault)
 
@@ -85,24 +105,7 @@ Open the app, then click **Choose local vault** and select your vault folder.
 If your browser (or an automation agent) cannot use the folder picker, click **Try demo vault** in the “Open a vault” dialog.
 The demo opens `Welcome.md` by default.
 
-### Dropbox mode
-
-To use a vault stored on Dropbox, click **Connect Dropbox** in the “Open a vault” dialog and follow the OAuth flow.
-Then pick the vault folder using the built-in Dropbox folder navigator (browse subfolders, go up, and optionally create a new folder).
-
-Server configuration (local or Vercel):
-
-- `DROPBOX_APP_KEY`
-- `DROPBOX_APP_SECRET`
-- `DROPBOX_REDIRECT_URI` (must be whitelisted in your Dropbox app, e.g. `https://your-domain/dropbox-oauth.html`)
-
-Note: Dropbox file operations are proxied through the app backend (`/api/dropbox/files/*`) to avoid browser CORS limitations.
-
-Troubleshooting:
-
-- If Dropbox connect fails with an HTTP error, check the status bar message (it includes the backend error body when available).
-- The Dropbox folder path is a Dropbox path (e.g. `/Apps/ObsidianVault`), not a local path like `/Applications/...`.
-- If the folder doesn’t exist, the app can create it for you (optional prompt).
+<!-- Dropbox mode documentation removed -->
 
 ## Contributing (GitHub workflow)
 
@@ -169,24 +172,28 @@ git rebase origin/main
 
 ## Markdown preview support (basic)
 
-The preview is intentionally simple (no external dependencies). It supports:
+The preview is intentionally local and dependency-free. It supports:
 
-- Headings (`#` to `####`)
+- Headings (`#` to `######`) with anchor ids
 - Paragraphs
 - Line breaks inside paragraphs (single newline → line break)
-- Bold/italic
+- Bold/italic, strikethrough, and highlight
 - Inline code and fenced code blocks (```…```)
-- Blockquotes
+- Blockquotes and Obsidian-style callouts (`> [!note]`)
 - Horizontal rules
 - Links: `[label](https://example.com)`
 - Images: `![alt](/img/browsidian.png)`
-- Tables (header + separator row)
+- Tables (header + separator row, basic alignment)
+- Ordered and unordered lists, including nested lists
+- Task lists (`- [ ]`, `- [x]`)
 - Obsidian wikilinks: `[[Note]]`, `[[Note|Alias]]`
+- Raw URLs and autolinks (`https://example.com`, `<https://example.com>`)
+- Obsidian tags: `#tag` and `#tag/sub-tag`
 
 Notes:
 
 - Section anchors in wikilinks (e.g. `[[Note#Heading]]`) are ignored for now (the file opens, but it does not scroll).
-- Table alignment markers are ignored (rendered as a normal table).
+- Table alignment markers are supported in a basic way (`:---`, `---:`, `:---:`).
 
 ## Security model
 

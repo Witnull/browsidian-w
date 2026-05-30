@@ -1,11 +1,17 @@
 {
   "name": "obsidian-web",
   "private": true,
-  "version": "1.1.13",
+  "version": "1.1.14",
   "description": "Local web app to browse and edit an Obsidian vault in the browser.",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
+    "dev": "node scripts/dev.js",
+    "build": "vite build",
     "start": "node server.js"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^17.4.2",
+    "vite": "^8.0.14"
   }
 }
