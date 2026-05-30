@@ -42,3 +42,9 @@ export const authPassword = document.getElementById("authPassword");
 export const authRegisterToggle = document.getElementById("authRegisterToggle");
 export const authCancel = document.getElementById("authCancel");
 export const authSubmit = document.getElementById("authSubmit");
+
+
+export const overlay = document.getElementById("appOverlay");
+export const ovlTitleEl = document.getElementById("overlayTitle");
+export const ovlMessageEl = document.getElementById("overlayMsg");
+export const ovlCloseBtn = document.getElementById("overlayClose");

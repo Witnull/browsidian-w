@@ -1,11 +1,12 @@
 import { editorEl, previewEl, sourceModeBtn, lineNumbersBtn } from "./dom.js";
-import { state } from "../core/state.js";
+import { state } from "../core/appState.js";
 import { AUTOSAVE_DELAY_MS } from "../core/config.js"
-import { listDir, readFile, writeFile } from "./fileSystem.js";
+import { listDir, readFile, writeFile } from "../core/fileSystemAPI.js";
 import { renderMarkdownBasic, renderMarkdownLive, processEmbeddedAssets } from "./markdown.js";
-import { setActivePath, setDirty, setStatus, setSaveStatus } from "../core/ui.js";
+import { setActivePath, setDirty, setStatus, setSaveStatus } from "./uiState.js";
 import { joinPath, normalizeDir, parentDirOf, stripMdExtension, hasExtension } from "../utils/path.js";
-import { renderTree, setSelectedDir } from "./tree.js";
+import { renderTree, setSelectedDir } from "./dirTree.js";
+import { createIconButton } from "../utils/html.js";
 
 export function clearAutosaveTimer() {
     if (state.autosaveTimer) window.clearTimeout(state.autosaveTimer);
@@ -50,14 +51,16 @@ export function invalidateFileIndex() {
 
 function syncSourceModeUi() {
     if (!sourceModeBtn) return;
-    sourceModeBtn.textContent = state.sourceMode ? "Preview" : "Source";
+    // sourceModeBtn.textContent = state.sourceMode ? "Preview" : "Source";
+    sourceModeBtn.innerHTML = state.sourceMode ? createIconButton('i-preview', "Preview") : createIconButton('i-code', "Source") // icons in icon.html
     sourceModeBtn.title = state.sourceMode ? "Leave source mode" : "Show source mode";
     sourceModeBtn.setAttribute("aria-pressed", state.sourceMode ? "true" : "false");
 }
 
 function syncLineNumbersUi() {
     if (!lineNumbersBtn) return;
-    lineNumbersBtn.textContent = state.lineNumbers ? "Hide numbers" : "Line numbers";
+    // lineNumbersBtn.textContent = state.lineNumbers ? "Hide numbers" : "Line numbers";
+    lineNumbersBtn.innerHTML = state.lineNumbers ? createIconButton('i-hide-line-numbers', "Hide numbers") : createIconButton('i-line-numbers', "Line numbers") // icons in icon.html
     lineNumbersBtn.title = state.lineNumbers ? "Hide line numbers" : "Show line numbers";
     lineNumbersBtn.setAttribute("aria-pressed", state.lineNumbers ? "true" : "false");
 }
@@ -148,7 +151,7 @@ export async function openWikiLinkTarget(target) {
             return;
         } catch { }
 
-        setStatus("Recherche du lien…","y");
+        setStatus("Recherche du lien…", "y");
         const index = await ensureFileIndex();
         const key = stripMdExtension(t).toLowerCase();
         const matches = index.get(key);
@@ -156,7 +159,7 @@ export async function openWikiLinkTarget(target) {
             await openFile(matches[0]);
             return;
         }
-        setStatus(`Link not found: [[${target}]]`,"r");
+        setStatus(`Link not found: [[${target}]]`, "r");
         return;
     }
 
@@ -207,7 +210,7 @@ export async function openFile(filePath) {
         if (!ok) return;
     }
     clearAutosaveTimer();
-    setStatus(`Opening: ${filePath}`,"y");
+    setStatus(`Opening: ${filePath}`, "y");
     const content = await readFile(filePath);
     state.activeFile = filePath;
     state.selectedDir = parentDirOf(filePath);
@@ -218,17 +221,17 @@ export async function openFile(filePath) {
     state.activeInlineLine = null;
     syncSourceModeUi();
     showPreview();
-    setStatus("Ready.","g");
+    setStatus("Ready.", "g");
     renderTree();
 }
 
 export async function saveCurrent() {
     if (!state.activeFile) return;
-    setSaveStatus("Saving…","y");
+    setSaveStatus("Saving…", "y");
     await writeFile(state.activeFile, editorEl.value);
     state.activeFileContent = editorEl.value;
     setDirty(false);
-    setSaveStatus("Saved.","g");
+    setSaveStatus("Saved.", "g");
     const keepInlineEdit = !state.sourceMode && state.activeInlineLine != null;
     if (keepInlineEdit) state.inlineEditSkipBlur = true;
     try {
@@ -242,7 +245,7 @@ export function scheduleAutosave() {
     if (!state.activeFile) return;
     if (!state.dirty) return;
     clearAutosaveTimer();
-    setSaveStatus("Not saved",'n')
+    setSaveStatus("Not saved", 'n')
     state.autosaveTimer = window.setTimeout(() => {
         state.autosaveTimer = null;
         void autosaveNow();
@@ -258,11 +261,11 @@ export async function autosaveNow() {
     }
     state.autosaveInFlight = true;
     try {
-        setSaveStatus("Auto-saving…","y");
+        setSaveStatus("Auto-saving…", "y");
         await writeFile(state.activeFile, editorEl.value);
         state.activeFileContent = editorEl.value;
         setDirty(false);
-        setSaveStatus("Auto-saved.","g");
+        setSaveStatus("Auto-saved.", "g");
         if (document.activeElement !== editorEl) {
             const keepInlineEdit = !state.sourceMode && state.activeInlineLine != null;
             if (keepInlineEdit) state.inlineEditSkipBlur = true;
@@ -273,7 +276,7 @@ export async function autosaveNow() {
             }
         }
     } catch (err) {
-        setSaveStatus(`Auto-save error: ${err.message}`,"r");
+        setSaveStatus(`Auto-save error: ${err.message}`, "r");
     } finally {
         state.autosaveInFlight = false;
         if (state.autosaveQueued) {
@@ -308,5 +311,5 @@ export async function selectFolder(dirRel) {
     }
     if (state.activeFile) clearActiveFile();
     setSelectedDir(dirRel);
-    setStatus("Ready.","g");
+    setStatus("Ready.", "g");
 }

@@ -1,5 +1,5 @@
-import { state } from "../core/state.js";
-import { apiGet, apiSend } from "../core/api.js";
+import { state } from "./appState.js";
+import { apiGet, apiSend } from "./api.js";
 import { demoVaultStore } from "../demoVault.js";
 import { joinPath, normalizeDir, splitPath } from "../utils/path.js";
 import { shouldIgnoreEntry } from "../utils/ignore.js";
@@ -39,15 +39,12 @@ async function listDirBrowser(dirRel) {
     return entries;
 }
 
-// Dropbox support removed.
 
 async function readFileBrowser(fileRel) {
     const handle = await getFileHandleByPath(fileRel, { create: false });
     const file = await handle.getFile();
     return await file.text();
 }
-
-// Dropbox support removed.
 
 async function writeFileBrowser(fileRel, content) {
     const handle = await getFileHandleByPath(fileRel, { create: true });
@@ -56,13 +53,9 @@ async function writeFileBrowser(fileRel, content) {
     await writable.close();
 }
 
-// Dropbox support removed.
-
 async function mkdirBrowser(dirRel) {
     await getDirHandleByPath(dirRel, { create: true });
 }
-
-// Dropbox support removed.
 
 export async function listDir(dirRel) {
     const d = normalizeDir(dirRel);
@@ -199,7 +192,6 @@ export async function moveFilePath(fromRel, toRel) {
         demoVaultStore.moveEntry(fromRel, toRel);
         return;
     }
-    // Dropbox support removed.
     if (state.mode === "browser") {
         const kind = await pathKindBrowser(fromRel);
         if (!kind) throw new Error("Source not found");

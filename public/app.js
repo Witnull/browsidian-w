@@ -17,7 +17,7 @@ import {
     useServerBtn,
     vaultDialog,
     vaultChooseBtn,
-    vaultDemoBtn,
+    vaultDemoBtn
 } from "./modules/ui/dom.js";
 
 import { apiGet, apiSend } from "./modules/core/api.js";
@@ -27,16 +27,15 @@ import { demoVaultStore } from "./modules/demoVault.js";
 
 import { clearActiveFile, openFile, openWikiLinkTarget, saveCurrent, scheduleAutosave, selectFolder, showPreview, invalidateFileIndex, setSourceMode, setLineNumbers, setInlineEditLine, clearInlineEditLine, updateSourceLine, replaceSourceLines } from "./modules/ui/editor.js";
 
-import { deleteFilePath, mkdir, moveFilePath, writeFile } from "./modules/ui/fileSystem.js";
-import { showPrompt } from "./modules/core/prompts.js";
+import { deleteFilePath, mkdir, moveFilePath, writeFile } from "./modules/core/fileSystemAPI.js";
+import { showOverlay, showPrompt } from "./modules/ui/popUpPrompts.js";
 
-import { state } from "./modules/core/state.js";
+import { state } from "./modules/core/appState.js";
 
-import { ensureDirLoaded, getDropTargetDir, getMoveTargetPath, renderTree, toggleDir } from "./modules/ui/tree.js";
-    import { apiGet, apiSend } from "./modules/core/api.js";
-import { applyTheme, setActivePath, setDirty, setSaveStatus, setStatus, setVaultUiEnabled } from "./modules/core/ui.js";
+import { ensureDirLoaded, getDropTargetDir, getMoveTargetPath, renderTree, toggleDir } from "./modules/ui/dirTree.js";
+import { applyTheme, setActivePath, setDirty, setSaveStatus, setStatus, setVaultUiEnabled } from "./modules/ui/uiState.js";
 
-import { setMode } from "./modules/ui/workspaceUi.js";
+import { setMode } from "./modules/ui/resetUIStateOnMode.js";
 
 import {
     openDemoVault,
@@ -48,7 +47,8 @@ import {
 } from "./modules/ui/vaults.js";
 
 import { basenameOf, joinPath, normalizeDir, parentDirOf } from "./modules/utils/path.js";
-
+import { performAuth } from "./modules/core/auth.js";
+import { cleanInput } from "./modules/utils/html.js";
 function hideContextMenu() {
     if (!contextMenuEl) return;
     contextMenuEl.hidden = true;
@@ -62,7 +62,6 @@ function showContextMenu({ x, y, path, type }) {
     if (!contextMenuEl) return;
     contextMenuEl.hidden = false;
     contextMenuEl.dataset.path = path || "";
-    import { authDialog, authForm, authTitle, authHelp, authAccount, authPassword, authRegisterToggle } from "./modules/ui/dom.js";
     contextMenuEl.dataset.type = type || "";
 
     const padding = 8;
@@ -82,44 +81,6 @@ function splitBaseName(name) {
     const dotIndex = base.lastIndexOf(".");
     if (dotIndex <= 0) return { stem: base, ext: "" };
     return { stem: base.slice(0, dotIndex), ext: base.slice(dotIndex) };
-}
-
-// Show auth dialog for login/register. Returns { action: 'submit'|'cancel', register: boolean, account, password }
-function showAuthDialog({ title = 'Login', help = '', registerMode = false } = {}) {
-    return new Promise((resolve) => {
-        if (!authDialog) return resolve(null);
-        authTitle.textContent = title;
-        authHelp.textContent = help || '';
-        authAccount.value = '';
-        authPassword.value = '';
-        authRegisterToggle.checked = Boolean(registerMode);
-        authRegisterToggle.disabled = Boolean(registerMode);
-
-        function cleanup() {
-            authForm.removeEventListener('submit', onSubmit);
-            authDialog.removeEventListener('close', onClose);
-        }
-
-        function onSubmit(e) {
-            e.preventDefault();
-            const account = authAccount.value?.toString?.() || '';
-            const password = authPassword.value?.toString?.() || '';
-            const register = Boolean(authRegisterToggle.checked);
-            cleanup();
-            try { authDialog.close(); } catch {};
-            resolve({ action: 'submit', register, account, password });
-        }
-
-        function onClose() {
-            cleanup();
-            resolve({ action: 'cancel' });
-        }
-
-        authForm.addEventListener('submit', onSubmit);
-        authDialog.addEventListener('close', onClose, { once: true });
-        try { authDialog.showModal(); } catch { authDialog.open = true; }
-        authAccount.focus();
-    });
 }
 
 async function refreshAfterMove({ from, to, isDir }) {
@@ -188,7 +149,7 @@ async function renameTreeItem(path, type) {
         return;
     }
 
-    let finalName = trimmed;
+    let finalName = cleanInput(trimmed);
     if (!isDir) {
         const { stem: nextStem, ext: nextExt } = splitBaseName(trimmed);
         if (!nextExt && ext) finalName = `${nextStem}${ext}`;
@@ -196,7 +157,7 @@ async function renameTreeItem(path, type) {
 
     const to = joinPath(parentDirOf(path), finalName);
     if (to === path) {
-        setStatus("No rename.","r");
+        setStatus("No rename.", "r");
         return;
     }
 
@@ -204,12 +165,12 @@ async function renameTreeItem(path, type) {
         state.movingPath = path;
         state.moveInProgress = true;
         renderTree();
-        setStatus("Renaming…","y");
+        setStatus("Renaming…", "y");
         await moveFilePath(path, to);
         await refreshAfterMove({ from: path, to, isDir });
-        setStatus("Renamed.","g");
+        setStatus("Renamed.", "g");
     } catch (err) {
-        setStatus(`Error: ${err.message}`,"r");
+        setStatus(`Error: ${err.message}`, "r");
     } finally {
         state.movingPath = null;
         state.moveInProgress = false;
@@ -227,14 +188,15 @@ async function createFolder() {
         value: base ? `${base}/` : ""
     });
     if (!rel) return;
-    setStatus("Creating folder…","y");
+    print(rel)
+    setStatus("Creating folder…", "y");
     await mkdir(rel);
     invalidateFileIndex();
     const parent = parentDirOf(rel);
     state.childrenByDir.delete(parent);
     await ensureDirLoaded(parent);
     state.expandedDirs.add(parent);
-    setStatus("Folder created.","g");
+    setStatus("Folder created.", "g");
     renderTree();
 }
 
@@ -256,20 +218,20 @@ async function createFile() {
     if (!lower.endsWith(".md")) {
         if (baseName.includes(".")) {
             alert("Only .md files are allowed.");
-            setStatus("Error: only .md files are allowed.","r");
+            setStatus("Error: only .md files are allowed.", "r");
             return;
         }
         finalPath = `${trimmed}.md`;
     }
 
-    setStatus("Creating file…","y");
+    setStatus("Creating file…", "y");
     await writeFile(finalPath, "");
     invalidateFileIndex();
     const parent = parentDirOf(finalPath);
     state.childrenByDir.delete(parent);
     await ensureDirLoaded(parent);
     state.expandedDirs.add(parent);
-    setStatus("File created.","g");
+    setStatus("File created.", "g");
     renderTree();
     await openFile(finalPath);
 }
@@ -279,38 +241,40 @@ function clearDropTargets() {
 }
 
 
-
-
+////////////////////////////////////
+// MAIN ENTRY
+////////////////////////////////////
 async function bootstrap() { // initialize app
     setStatus("")
     setSaveStatus("")// flush
 
 
-    setStatus("Connecting to server…","y");
+    setStatus("Connecting to server…", "y");
     const cfg = await apiGet("/api/config").catch(() => null);
     state.vaultLabel = cfg?.vault ? cfg.vault : "";
+    // console.log(cfg)
     // Warn when vault exists but is not yet registered
-    if (cfg && cfg.vault && cfg.accountConfigured === false) {
-        setStatus("Vault is not registered. Registration required.", "r");
-        // If running in browser on the server host, offer in-app registration modal
-        const hostIsLocal = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-        if (hostIsLocal) {
-            // show auth dialog in register mode
-            const result = await showAuthDialog({ title: 'Register vault account', help: 'Registration is allowed only from the server host. Registering creates a single account for this vault.' , registerMode: true });
-            if (result && result.action === 'submit' && result.register) {
-                try {
-                    const r = await apiSend("POST", "/api/register", { account: result.account, password: result.password });
-                    if (r && r.ok) {
-                        setStatus("Registration successful. Reloading…", "y");
-                        location.reload();
-                        return;
-                    }
-                } catch (e) {
-                    setStatus(`Registration failed: ${e.message}`, "r");
-                }
+    if (cfg && cfg.vault) {
+        let [authenticated, can_retry] = [false, false];
+        while (!authenticated) {
+            [authenticated, can_retry] = await performAuth(window.location.hostname, cfg.accountConfigured);
+            console.log(authenticated, can_retry)
+            if (!authenticated) {
+                if(!can_retry){
+                    console.warn("Please register at server host (local).")
+                    showOverlay("OOPS!! This vault is not yet registered.","Remote access is unavailable until an account has been created on the server host. Please register the vault locally before attempting to connect from another device.", false)
+                    
+                    return;
+                };
+                console.warn("Authenticate failed. Retrying...");
+            }else{
+                //location.reload();
+                break;
             }
-        }
+        };
     }
+
+    console.warn("Success logged!");
     setVaultLabel(state.vaultLabel);
     state.appVersion = await resolveAppVersion()
     setAppVersion(state.appVersion);
@@ -319,11 +283,11 @@ async function bootstrap() { // initialize app
 
     const restored = await restoreLocalVaultFromStorage().catch(() => false);
     if (restored) return;
-
+    
     if (!cfg?.vault) {
         setVaultUiEnabled(false);
         treeEl.innerHTML = "";
-        setStatus("Choose a local vault, or start the server with OBSIDIAN_VAULT/--vault.","r");
+        setStatus("Choose a local vault, or start the server with OBSIDIAN_VAULT/--vault.", "r");
         showVaultModal();
         return;
     }
@@ -331,31 +295,31 @@ async function bootstrap() { // initialize app
     try {
         await ensureDirLoaded("");
         renderTree();
-        setStatus("Ready.","g");
+        setStatus("Ready.", "g");
     } catch (err) {
-        // If this is an authentication/registration issue, prompt the user to login.
-        const msg = (err && err.message) ? err.message.toLowerCase() : "";
-        if (msg.includes("authentication") || msg.includes("registration") || msg.includes("required")) {
-            setStatus("Login required to access this vault.", "r");
-            const result = await showAuthDialog({ title: 'Login', help: 'Enter your vault account and password to unlock vault access.', registerMode: false });
-            if (result && result.action === 'submit' && !result.register) {
-                try {
-                    const r = await apiSend("POST", "/api/login", { account: result.account, password: result.password });
-                    if (r && r.ok) {
-                        setStatus("Login successful. Loading…", "y");
-                        await ensureDirLoaded("");
-                        renderTree();
-                        setStatus("Ready.", "g");
-                    } else {
-                        setStatus("Login failed.", "r");
-                    }
-                } catch (e) {
-                    setStatus(`Login failed: ${e.message}`, "r");
-                }
-            }
-        } else {
-            setStatus(`Error: ${err.message}`,"r");
-        }
+        // // If this is an authentication/registration issue, prompt the user to login.
+        // const msg = (err && err.message) ? err.message.toLowerCase() : "";
+        // if (msg.includes("authentication") || msg.includes("registration") || msg.includes("required")) {
+        //     setStatus("Login required to access this vault.", "r");
+        //     const result = await showAuthDialog({ title: 'Login', help: 'Enter your vault account and password to unlock vault access.', registerMode: false });
+        //     if (result && result.action === 'submit' && !result.register) {
+        //         try {
+        //             const r = await apiSend("POST", "/api/login", { account: result.account, password: result.password });
+        //             if (r && r.ok) {
+        //                 setStatus("Login successful. Loading…", "y");
+        //                 await ensureDirLoaded("");
+        //                 renderTree();
+        //                 setStatus("Ready.", "g");
+        //             } else {
+        //                 setStatus("Login failed.", "r");
+        //             }
+        //         } catch (e) {
+        //             setStatus(`Login failed: ${e.message}`, "r");
+        //         }
+        //     }
+        // } else {
+        //     setStatus(`Error: ${err.message}`, "r");
+        // }
     }
 }
 
@@ -367,13 +331,6 @@ function getLinesFromText(text) {
     return normalizeText(text).split("\n");
 }
 
-function commitInlineLineChange({ lineNumber, nextText, activeLine, selectionStart, selectionEnd }) {
-    const lines = getLinesFromText(editorEl.value);
-    if (lineNumber < 0 || lineNumber >= lines.length) return;
-    lines[lineNumber] = nextText;
-    replaceSourceLines(lines, { activeLine, selectionStart, selectionEnd });
-    if (state.dirty) scheduleAutosave();
-}
 
 function syncInlineSelection(editor) {
     if (!editor) return;
@@ -400,7 +357,7 @@ if (vaultChooseBtn) {
             await selectLocalVault();
             if (vaultDialog?.open) vaultDialog.close();
         } catch (err) {
-            setStatus(`Error: ${err.message}`,"r");
+            setStatus(`Error: ${err.message}`, "r");
         }
     });
 }
@@ -410,12 +367,11 @@ if (vaultDemoBtn) {
         try {
             await openDemoVault();
         } catch (err) {
-            setStatus(`Error: ${err.message}`,"r");
+            setStatus(`Error: ${err.message}`, "r");
         }
     });
 }
 
-// Dropbox button removed.
 
 selectVaultBtn.addEventListener("click", async () => {
     try {
@@ -424,10 +380,9 @@ selectVaultBtn.addEventListener("click", async () => {
             await openDemoVault();
             return;
         }
-        // Dropbox mode removed; fall back to local selection.
         await selectLocalVault();
     } catch (err) {
-        setStatus(`Error: ${err.message}`,"r");
+        setStatus(`Error: ${err.message}`, "r");
     }
 });
 
@@ -435,7 +390,7 @@ useServerBtn.addEventListener("click", async () => {
     try {
         await switchToServerMode();
     } catch (err) {
-        setStatus(`Error: ${err.message}`,"r");
+        setStatus(`Error: ${err.message}`, "r");
     }
 });
 
@@ -453,7 +408,7 @@ treeEl.addEventListener("click", async (e) => {
         }
         await openFile(p);
     } catch (err) {
-        setStatus(`Error: ${err.message}`,"r");
+        setStatus(`Error: ${err.message}`, "r");
     }
 });
 
@@ -526,13 +481,13 @@ treeEl.addEventListener("drop", async (e) => {
     const isDirMove = state.draggingType === "dir";
     const fromPrefix = `${from}/`;
     if (isDirMove && (to === from || to.startsWith(fromPrefix))) {
-        setStatus("Cannot move a folder into itself.","r");
+        setStatus("Cannot move a folder into itself.", "r");
         state.draggingPath = null;
         state.draggingType = null;
         return;
     }
     if (to === from) {
-        setStatus("No move.","r");
+        setStatus("No move.", "r");
         return;
     }
 
@@ -542,12 +497,12 @@ treeEl.addEventListener("drop", async (e) => {
         state.movingPath = from;
         state.moveInProgress = true;
         renderTree();
-        setStatus("Moving…","y");
+        setStatus("Moving…", "y");
         await moveFilePath(from, to);
         await refreshAfterMove({ from, to, isDir: isDirMove });
-        setStatus("Moved.","g");
+        setStatus("Moved.", "g");
     } catch (err) {
-        setStatus(`Error: ${err.message}`,"r");
+        setStatus(`Error: ${err.message}`, "r");
     } finally {
         state.draggingPath = null;
         state.draggingType = null;
@@ -579,7 +534,7 @@ previewEl.addEventListener("click", async (e) => {
             try {
                 await openWikiLinkTarget(decodeURIComponent(wl));
             } catch (err) {
-                setStatus(`Error: ${err.message}`,"r");
+                setStatus(`Error: ${err.message}`, "r");
             }
         }
         return;
@@ -815,7 +770,7 @@ saveBtn.addEventListener("click", async () => {
     try {
         await saveCurrent();
     } catch (err) {
-        setStatus(`Error: ${err.message}`,"r");
+        setStatus(`Error: ${err.message}`, "r");
     }
 });
 
@@ -825,7 +780,7 @@ document.addEventListener("keydown", async (e) => {
         try {
             await saveCurrent();
         } catch (err) {
-            setStatus(`Error: ${err.message}`,"r");
+            setStatus(`Error: ${err.message}`, "r");
         }
     }
 });
@@ -839,7 +794,7 @@ newFolderBtn.addEventListener("click", async () => {
     try {
         await createFolder();
     } catch (err) {
-        setStatus(`Error: ${err.message}`,"r");
+        setStatus(`Error: ${err.message}`, "r");
     }
 });
 
@@ -847,7 +802,7 @@ newFileBtn.addEventListener("click", async () => {
     try {
         await createFile();
     } catch (err) {
-        setStatus(`Error: ${err.message}`,"r");
+        setStatus(`Error: ${err.message}`, "r");
     }
 });
 
@@ -888,7 +843,7 @@ if (contextDeleteFileEl) {
         const ok = confirm(`Delete\n\n${p}\n\nThis cannot be undone. Continue?`);
         if (!ok) return;
         try {
-            setStatus("Deleting…","y");
+            setStatus("Deleting…", "y");
             await deleteFilePath(p);
             invalidateFileIndex();
             const parent = parentDirOf(p);
@@ -900,9 +855,9 @@ if (contextDeleteFileEl) {
             }
 
             renderTree();
-            setStatus("Deleted.","g");
+            setStatus("Deleted.", "g");
         } catch (err) {
-            setStatus(`Error: ${err.message}`,"r");
+            setStatus(`Error: ${err.message}`, "r");
         }
     });
 }
@@ -923,4 +878,4 @@ if (contextDeleteFileEl) {
         }
     });
 })();
-bootstrap().catch((err) => setStatus(`Error: ${err.message}`,"r"));
+bootstrap().catch((err) => setStatus(`Error: ${err.message}`, "r"));

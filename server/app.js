@@ -3,6 +3,7 @@ const fs = require("fs");
 const fsp = require("fs/promises");
 const path = require("path");
 const { URL } = require("url");
+const crypto = require('crypto');
 
 const { BACKEND_PORT_DEFAULT, parseArgs } = require("./config");
 const { json, text, readBody } = require("./http");
@@ -16,15 +17,21 @@ async function main() {
     const port = Number.isFinite(args.port) ? args.port : Number(process.env.PORT || BACKEND_PORT_DEFAULT);
     const host = args.host ?? process.env.HOST ?? "127.0.0.1";
 
-    const crypto = require('crypto');
+    
 
     const server = http.createServer(async (req, res) => {
         try {
             if (!req.url) return text(res, 400, "Bad Request");
             const reqUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
-            const remoteAddr = req.socket.remoteAddress || "";
-            const isLocalReq = remoteAddr === "127.0.0.1" || remoteAddr === "::1" || remoteAddr === "::ffff:127.0.0.1";
+            function getClientIp(request) {
+                const forwarded = (request.headers["x-forwarded-for"] || request.headers["x-real-ip"] || "").toString().split(",")[0].trim();
+                if (forwarded) return forwarded;
+                return request.socket.remoteAddress || "";
+            }
+
+            const remoteAddr = getClientIp(req);
+            const isLocalReq = remoteAddr === "127.0.0.1" || remoteAddr === "::1" || remoteAddr === "::ffff:127.0.0.1" || remoteAddr === "localhost";
             // Allow registration when the request comes from localhost
             const allowRegister = isLocalReq;
 
@@ -42,82 +49,14 @@ async function main() {
             }
 
             function hashAccount(account, password) {
-                return crypto.createHash('sha256').update(`${account}:${password}`).digest('hex');
+                return crypto.createHash('sha256').update(`${password}:${account}:this_is_just_a_s4ty_m34sur3`).digest('hex');
             }
 
             function parseCookies(req) {
                 const raw = req.headers.cookie || "";
                 return raw.split(';').map(s=>s.trim()).filter(Boolean).reduce((acc, cur)=>{const idx=cur.indexOf('='); if(idx===-1) return acc; acc[cur.slice(0,idx)]=cur.slice(idx+1); return acc;}, {});
             }
-
-            async function serveLoginHtml(message = "Please login") {
-                                const vaultName = vaultReal ? path.basename(vaultReal) : '(none)';
-                                const html = `<!doctype html>
-<html>
-    <head>
-        <meta charset="utf-8">
-        <title>Vault login</title>
-        <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px;color:#111}h1{margin:0 0 12px}p{margin:0 0 12px;color:#333}form input{display:block;margin:6px 0;padding:8px;width:280px;max-width:90%}button{padding:8px 12px}</style>
-    </head>
-    <body>
-        <h1>Vault Login</h1>
-        <p><strong>Vault:</strong> ${escapeHtml(vaultName)}</p>
-        <p>${escapeHtml(message)} — this vault requires authentication before any vault data is shown. If you are the server operator, enter the account and password to continue.</p>
-        <form id="f">
-            <input id="acct" placeholder="Account" required>
-            <input id="pwd" type="password" placeholder="Password" required>
-            <button type="submit">Login</button>
-        </form>
-        <script>
-            document.getElementById('f').addEventListener('submit', async (e)=>{
-                e.preventDefault();
-                const a=document.getElementById('acct').value;
-                const p=document.getElementById('pwd').value;
-                const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account:a,password:p})});
-                if(r.ok) location.reload(); else {const j=await r.json(); alert(j.error||'Login failed');}
-            })
-        </script>
-    </body>
-</html>`;
-                                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-                                res.end(html);
-            }
-
-                        async function serveRegisterHtml(message = "Register vault account") {
-                                const vaultName = vaultReal ? path.basename(vaultReal) : '(none)';
-                                const html = `<!doctype html>
-<html>
-    <head>
-        <meta charset="utf-8">
-        <title>Register Vault Account</title>
-        <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px;color:#111}h1{margin:0 0 12px}p{margin:0 0 12px;color:#333}form input{display:block;margin:6px 0;padding:8px;width:320px;max-width:95%}button{padding:8px 12px}</style>
-    </head>
-    <body>
-        <h1>Register Vault Account</h1>
-        <p><strong>Vault:</strong> ${escapeHtml(vaultName)}</p>
-        <p>${escapeHtml(message)} — registration is only allowed from the server host (localhost). Registering creates a single account for this vault; remote clients will be required to login afterward.</p>
-        <form id="f">
-            <input id="acct" placeholder="Account" required>
-            <input id="pwd" type="password" placeholder="Password" required>
-            <button type="submit">Register</button>
-        </form>
-        <script>
-            document.getElementById('f').addEventListener('submit', async (e)=>{
-                e.preventDefault();
-                const a=document.getElementById('acct').value;
-                const p=document.getElementById('pwd').value;
-                const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account:a,password:p})});
-                if(r.ok) location.reload(); else {const j=await r.json(); alert(j.error||'Register failed');}
-            })
-        </script>
-    </body>
-</html>`;
-                                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-                                res.end(html);
-                        }
-
-            function escapeHtml(s){ return (s||'').toString().replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;"); }
-
+        
             // Authentication guard for vault access
             const acctHash = await readAccountHash();
             const cookies = parseCookies(req);
@@ -189,6 +128,7 @@ async function main() {
                     try { payload = JSON.parse(bodyBuf.toString('utf8') || '{}'); } catch { return json(res, 400, { error: 'Invalid JSON' }); }
                     const acc = payload?.account?.toString()?.trim();
                     const pwd = payload?.password?.toString() ?? '';
+                    
                     if (!acc || !pwd) return json(res, 400, { error: 'Expected { account, password }' });
                     const existing = await (async () => { try { return await readFileUtf8(vaultReal, '.waccount'); } catch { return null; } })();
                     if (existing) return json(res, 409, { error: 'Account already exists' });
@@ -196,6 +136,15 @@ async function main() {
                     await writeAccountHash(h);
                     return json(res, 200, { ok: true });
                 }
+
+                if (req.method === "GET" && reqUrl.pathname === '/api/islocallogged'){
+                    if (isLocalReq){
+                        console.log("ok")
+                        return json(res, 200, {ok: true});
+                    }
+                    return json(res, 400, {ok: false});
+                }
+
 
                 if (req.method === 'POST' && reqUrl.pathname === '/api/login') {
                     const bodyBuf = await readBody(req, 1024 * 1024);

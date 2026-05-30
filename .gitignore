@@ -3,3 +3,6 @@ dist
 agent.md 
 .dependency-cruiser.js
 *.dot
+test.json
+track.md
+callgraph.py

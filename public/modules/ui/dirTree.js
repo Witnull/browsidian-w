@@ -1,9 +1,10 @@
 import { treeEl } from "./dom.js";
-import { state } from "../core/state.js";
-import { listDir } from "./fileSystem.js";
-import { setStatus } from "../core/ui.js";
+import { state } from "../core/appState.js";
+import { listDir } from "../core/fileSystemAPI.js";
+import { setStatus } from "./uiState.js";
 import { basenameOf, joinPath, normalizeDir, parentDirOf } from "../utils/path.js";
 import { shouldIgnoreEntry } from "../utils/ignore.js";
+import { createIconButton } from "../utils/html.js";
 
 export function iconFor(entry) {
     if (entry.type === "dir") return state.expandedDirs.has(entry.path) ? "i-chevron-down" : "i-chevron-right";
@@ -77,22 +78,23 @@ export function renderTree() {
             if (entry.type === "file" && entry.path === state.activeFile) row.classList.add("active");
             if (entry.type === "dir" && entry.path === selectedDir) row.classList.add("selected");
 
-            const icon = document.createElement("div");
-            icon.className = "icon";
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svg.setAttribute("class", "icon-svg");
-            svg.setAttribute("aria-hidden", "true");
-            const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-            use.setAttribute("href", `#${iconFor(entry)}`);
-            svg.appendChild(use);
-            icon.appendChild(svg);
+            // const icon = document.createElement("div");
+            // icon.className = "icon";
+            // const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            // svg.setAttribute("class", "icon-svg");
+            // svg.setAttribute("aria-hidden", "true");
+            // const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+            // use.setAttribute("href", `#${iconFor(entry)}`);
+            // svg.appendChild(use);
+            // icon.appendChild(svg);
+            row.innerHTML = createIconButton(iconFor(entry), entry.name)
 
-            const name = document.createElement("div");
-            name.className = "name";
-            name.textContent = entry.name;
+            // const name = document.createElement("div");
+            // name.className = "name";
+            // name.textContent = entry.name;
 
-            row.appendChild(icon);
-            row.appendChild(name);
+            // // row.appendChild(icon)
+            // row.appendChild(name);
             container.appendChild(row);
 
             if (entry.type === "dir") {
@@ -116,10 +118,10 @@ export async function toggleDir(dir) {
         renderTree();
         return;
     }
-    setStatus(`Loading: ${d || "/"}`,"y");
+    setStatus(`Loading: ${d || "/"}`, "y");
     await ensureDirLoaded(d);
     state.expandedDirs.add(d);
-    setStatus("Ready.","g");
+    setStatus("Ready.", "g");
     renderTree();
 }
 

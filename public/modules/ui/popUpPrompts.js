@@ -1,4 +1,10 @@
-import { promptDialog, promptHelp, promptInput, promptLabel, promptTitle } from "../ui/dom.js";
+import {
+    promptDialog, promptHelp, promptInput, promptLabel, promptTitle, 
+    overlay,
+    ovlTitleEl,
+    ovlMessageEl,
+    ovlCloseBtn
+} from "./dom.js";
 
 export function showPrompt({ title, label, help, placeholder, value }) {
     promptTitle.textContent = title;
@@ -23,6 +29,7 @@ export function showPrompt({ title, label, help, placeholder, value }) {
             promptDialog.close("ok");
         };
         promptInput.addEventListener("keydown", onKeyDown);
+
         promptDialog.addEventListener(
             "close",
             () => {
@@ -34,3 +41,20 @@ export function showPrompt({ title, label, help, placeholder, value }) {
         );
     });
 }
+// showPrompt({
+//     title: "test",
+//     label: "label",
+//     help: "help",
+//     placeholder: "placeholder",
+//     value: "value"
+// })
+
+export function showOverlay(title, message, closeable=true) {
+    ovlTitleEl.textContent = title;
+    ovlMessageEl.textContent = message;
+    
+
+    overlay.hidden = false;
+    ovlCloseBtn.hidden = !closeable
+}
+ovlCloseBtn.addEventListener("click", ()=>{overlay.hidden = true;});

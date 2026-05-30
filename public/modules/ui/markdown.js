@@ -1,6 +1,6 @@
 import { escapeHtml, safeHref } from "../utils/html.js";
-import { readFile } from "./fileSystem.js";
-import { state } from "../core/state.js";
+import { readFile } from "../core/fileSystemAPI.js";
+import { state } from "../core/appState.js";
 import { basenameOf, parentDirOf, joinPath, normalizeDir } from "../utils/path.js";
 
 const CALL_OUT_TITLES = {
@@ -99,7 +99,10 @@ function renderFrontmatterRowValue(value) {
     if (!text) return `<span class="frontmatter-empty">—</span>`;
     if (/^(?:https?:\/\/|mailto:|www\.)/i.test(text)) {
         const href = text.startsWith("www.") ? `https://${text}` : text;
-        return `<a class="frontmatter-link" href="${escapeHtml(href)}" rel="noreferrer noopener" target="_blank">${escapeHtml(text)}</a>`;
+        const safe = normalizeLinkHref(href);
+        if (!safe)
+            return `<span class="frontmatter-value">${escapeHtml(text)}</span>`;
+        return `<a class="frontmatter-link" href="${escapeHtml(safe)}" rel="noreferrer noopener" target="_blank">${escapeHtml(text)}</a>`;
     }
     return `<span class="frontmatter-value">${escapeHtml(text)}</span>`;
 }
@@ -704,7 +707,7 @@ export async function processEmbeddedAssets(rootEl) {
 
             continue;
         } catch (err) {
-            try { el.textContent = `Error: ${err.message}`; } catch { }
+            try { el.textContent = `🔴 Error: ${err.message}`; } catch { }
         }
     }
 }

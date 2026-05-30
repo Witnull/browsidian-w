@@ -1,4 +1,4 @@
-const spriteUrl = new URL("../ui/icons.html", import.meta.url);
+const spriteUrl = new URL("./icons.html", import.meta.url);
 
 try {
     const response = await fetch(spriteUrl);
@@ -12,4 +12,4 @@ try {
     console.error(error);
 }
 
-await import("../../app.js");
+await import("../app.js");

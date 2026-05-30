@@ -1,5 +1,5 @@
 import { appVersionEl } from "../ui/dom.js";
-import { state } from "./state.js";
+import { state } from "./appState.js";
 import { apiGet, tryGetPackageJsonVersion } from "./api.js";
 
 export function setAppVersion(version) {

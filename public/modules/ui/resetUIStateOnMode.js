@@ -1,7 +1,7 @@
 import { editorEl, previewEl, searchEl, selectVaultBtn, sourceModeBtn, treeEl, useServerBtn } from "./dom.js";
-import { state } from "../core/state.js";
+import { state } from "../core/appState.js";
 import { clearAutosaveTimer, invalidateFileIndex, setLineNumbers } from "./editor.js";
-import { setActivePath, setDirty } from "../core/ui.js";
+import { setActivePath, setDirty } from "./uiState.js";
 
 export function setMode(nextMode) {
     state.mode = nextMode;

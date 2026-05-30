@@ -4,7 +4,7 @@ const path = require("path");
 
 const ROOT_DIR = path.join(__dirname, "..");
 
-const BACKEND_PORT_DEFAULT = 4173;
+const BACKEND_PORT_DEFAULT = 24173;
 
 const PUBLIC_DIR = path.join(ROOT_DIR, "public");
 const DIST_DIR = path.join(ROOT_DIR, "dist");

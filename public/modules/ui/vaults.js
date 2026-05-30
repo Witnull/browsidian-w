@@ -1,14 +1,14 @@
 import { treeEl, vaultChooseBtn, vaultDialog, vaultNameEl } from "./dom.js";
-import { state } from "../core/state.js";
+import { state } from "../core/appState.js";
 import { apiGet } from "../core/api.js";
-import { setStatus, setVaultUiEnabled } from "../core/ui.js";
-import { ensureDirLoaded, renderTree } from "./tree.js";
+import { setStatus, setVaultUiEnabled } from "./uiState.js";
+import { ensureDirLoaded, renderTree } from "./dirTree.js";
 import { openFile } from "./editor.js";
-import { resetUiState, setMode } from "./workspaceUi.js";
+import { resetUiState, setMode } from "./resetUIStateOnMode.js";
 
 export function setVaultLabel(label) {
     vaultNameEl.textContent = label ? `🟢${label}` : "🔴<none>";
-    vaultNameEl.ariaLabel = label?`Vault: ${label}`:"Not a vault"
+    vaultNameEl.ariaLabel = label ? `Vault: ${label}` : "Not a vault"
 }
 
 async function activateVaultSession({ mode, label, rootHandle = null, openPath = null, closeDialog = false }) {
@@ -23,7 +23,7 @@ async function activateVaultSession({ mode, label, rootHandle = null, openPath =
     if (openPath) {
         await openFile(openPath).catch(() => { });
     }
-    setStatus("Ready.","g");
+    setStatus("Ready.", "g");
     if (closeDialog && vaultDialog?.open) vaultDialog.close();
 }
 
@@ -43,7 +43,7 @@ export async function openDemoVault() {
         const ok = confirm("You have unsaved changes. Continue without saving?");
         if (!ok) return;
     }
-    setStatus("Opening demo vault…","y");
+    setStatus("Opening demo vault…", "y");
     await activateVaultSession({
         mode: "demo",
         label: "Demo (local)",
@@ -52,8 +52,7 @@ export async function openDemoVault() {
     });
 }
 
-
-export async function selectLocalVault() {
+export async function selectLocalVault() { // this will probably not work/ be used
     if (!("showDirectoryPicker" in window)) {
         alert("Your browser does not support folder selection (File System Access API). Try Chrome/Edge/Brave.");
         return;
@@ -62,7 +61,7 @@ export async function selectLocalVault() {
         const ok = confirm("You have unsaved changes. Continue without saving?");
         if (!ok) return;
     }
-    setStatus("Selecting folder…","y");
+    setStatus("Selecting folder…", "y");
     const handle = await window.showDirectoryPicker({ mode: "readwrite" });
     await vaultHandleStore.set(handle).catch(() => { });
     await activateVaultSession({
@@ -72,12 +71,12 @@ export async function selectLocalVault() {
     });
 }
 
-export async function switchToServerMode() {
+export async function switchToServerMode() { // main mode
     if (state.dirty) {
         const ok = confirm("You have unsaved changes. Continue without saving?");
         if (!ok) return;
     }
-    setStatus("Disconnecting…","y");
+    setStatus("Disconnecting…", "y");
     state.rootHandle = null;
     await vaultHandleStore.clear().catch(() => { });
     setMode("server");
@@ -99,6 +98,7 @@ export async function switchToServerMode() {
 
 export async function restoreLocalVaultFromStorage() {
     if (!("showDirectoryPicker" in window)) return false;
+    console.log("Reused handle")
     const handle = await vaultHandleStore.get().catch(() => null);
     if (!handle) return false;
 
@@ -116,7 +116,7 @@ export async function restoreLocalVaultFromStorage() {
     resetUiState();
     await ensureDirLoaded("");
     renderTree();
-    setStatus("Ready.","g");
+    setStatus("Ready.", "g");
     if (vaultDialog?.open) vaultDialog.close();
     return true;
 }

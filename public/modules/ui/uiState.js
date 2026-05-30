@@ -1,9 +1,9 @@
-import { createActionsEl, currentPathEl, dirtyEl, saveBtn, searchEl, statusEl, saveStatusEl, themeToggleEl } from "../ui/dom.js";
-import { state } from "./state.js";
+import { createActionsEl, currentPathEl, dirtyEl, saveBtn, searchEl, statusEl, saveStatusEl, themeToggleEl } from "./dom.js";
+import { state } from "../core/appState.js";
 
-export function getColorAction(action){
+export function getColorAction(action) {
     let color = ""
-    switch (action){
+    switch (action) {
         case "g":
             color = "🟢"
             break;
@@ -18,19 +18,17 @@ export function getColorAction(action){
             break;
         default:
             color = ""
-    }   
+    }
     return color
 }
 
-export function setStatus(msg, action ="") {
+export function setStatus(msg, action = "") {
     statusEl.textContent = `${getColorAction(action)}${msg}`;
 }
 
-export function setSaveStatus(msg, action="") {
+export function setSaveStatus(msg, action = "") {
     saveStatusEl.textContent = `${getColorAction(action)}${msg}`;
 }
-
-
 
 export function setDirty(isDirty) {
     state.dirty = isDirty;

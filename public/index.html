@@ -81,9 +81,15 @@
         </div>
         <div class="topbar-actions">
           <button id="sourceModeBtn" class="btn btn-secondary" title="Show source mode" aria-pressed="false">
+            <svg class="icon-svg" aria-hidden="true">
+              <use href="#i-code"></use>
+            </svg>
             <span>Source</span>
           </button>
           <button id="lineNumbersBtn" class="btn btn-secondary" title="Show line numbers" aria-pressed="false">
+            <svg class="icon-svg" aria-hidden="true">
+              <use href="#i-line-numbers"></use>
+            </svg>
             <span>Line numbers</span>
           </button>
           <button id="saveBtn" class="btn btn-primary" disabled>
@@ -166,8 +172,7 @@
         <label class="dialog-label" for="authAccount">Account</label>
         <input id="authAccount" class="dialog-input" />
         <label class="dialog-label" for="authPassword">Password</label>
-        <input id="authPassword" class="dialog-input" type="password" />
-        <div style="margin-top:8px"><label><input id="authRegisterToggle" type="checkbox" /> Register new account</label></div>
+        <input id="authPassword" class="dialog-input" type="password" autocomplete="current-password" />
       </div>
       <div class="dialog-actions">
         <button id="authCancel" value="cancel" class="btn btn-secondary">Cancel</button>
@@ -197,7 +202,19 @@
     <button id="contextDeleteFile" class="context-item" type="button">Delete</button>
   </div>
 
-  <script src="/modules/core/iconBootstrap.js" type="module"></script>
+  <div id="appOverlay" hidden>
+    <div class="overlayCard">
+        <h2 id="overlayTitle">Error</h2>
+        <p id="overlayMsg">Something went wrong.</p>
+
+        <div class="overlayActions">
+            <button id="overlayClose">Close</button>
+        </div>
+    </div>
+  </div>
+
+
+  <script src="/modules/iconBootstrap.js" type="module"></script>
 </body>
 
 </html>
